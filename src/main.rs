@@ -54,6 +54,13 @@ struct Args {
         help = "Interval in seconds between fan speed adjustments"
     )]
     interval: f64,
+
+    #[arg(
+        short,
+        long,
+        help = "Force fan speed updates even when speed hasn't changed"
+    )]
+    force: bool,
 }
 
 fn get_temp(verbose: bool) -> f64 {
@@ -123,18 +130,28 @@ fn set_fan(fan_level: i32) {
 fn main() {
     let args = Args::parse();
     let interval = Duration::from_secs_f64(args.interval);
+    let mut last_fan_speed = 0;
     
     loop {
         let temp = get_temp(args.verbose);
         let fan = determine_fan_level(temp, &args);
+        
+        let should_set_fan = args.force || last_fan_speed != fan;
+        
         if args.verbose || args.dry_run {
             let prefix = if args.dry_run { "[DRY RUN] " } else { "" };
-            println!("{prefix}Setting fan speed to {fan}% based on {temp:.1}°C");
+            if should_set_fan {
+                println!("{prefix}Setting fan speed to {fan}% based on {temp:.1}°C");
+            } else if args.verbose {
+                println!("Fan speed unchanged at {fan}% (temp: {temp:.1}°C)");
+            }
         }
-        if !args.dry_run {
+        
+        if !args.dry_run && should_set_fan {
             set_fan(fan);
         }
         
+        last_fan_speed = fan;
         thread::sleep(interval);
     }
 }
