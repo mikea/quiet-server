@@ -1,4 +1,4 @@
-# Fan Service
+# Quiet Server
 
 A Rust-based fan controller that automatically adjusts server fan speeds based on CPU package temperatures using IPMI and hardware sensors.
 
@@ -77,13 +77,13 @@ sudo usermod -a -G dialout $USER
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd fan-service
+cd quiet-server
 
 # Build the project
 cargo build --release
 
 # Install binary
-sudo cp target/release/fan-service /usr/local/bin/
+sudo cp target/release/quiet-server /usr/local/bin/
 
 # Or install via cargo
 cargo install --path .
@@ -94,18 +94,18 @@ cargo install --path .
 ### Basic Usage
 ```bash
 # Run with default settings
-fan-service
+quiet-server
 
 # Run in dry-run mode to test configuration
-fan-service --dry-run
+quiet-server --dry-run
 
 # Run with verbose output
-fan-service --verbose
+quiet-server --verbose
 ```
 
 ### Configuration Options
 ```bash
-fan-service [OPTIONS]
+quiet-server [OPTIONS]
 
 Options:
   --min-fan <MIN_FAN>      Minimum fan speed percentage [default: 4]
@@ -123,31 +123,31 @@ Options:
 
 #### Quiet Server (Lower Fan Speeds)
 ```bash
-fan-service --min-fan 10 --max-fan 60 --temp-pow 2.0
+quiet-server --min-fan 10 --max-fan 60 --temp-pow 2.0
 ```
 
 #### High Performance (Aggressive Cooling)
 ```bash
-fan-service --min-temp 35 --max-temp 75 --temp-pow 6.0
+quiet-server --min-temp 35 --max-temp 75 --temp-pow 6.0
 ```
 
 #### Testing Configuration
 ```bash
-fan-service --dry-run --verbose --interval 2.0
+quiet-server --dry-run --verbose --interval 2.0
 ```
 
 ## Running as a Service
 
 ### systemd Service (Recommended)
-Create `/etc/systemd/system/fan-service.service`:
+Create `/etc/systemd/system/quiet-server.service`:
 ```ini
 [Unit]
-Description=Automatic Fan Control Service
+Description=Quiet Server Fan Control Service
 After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/fan-service --min-fan 10 --max-fan 80
+ExecStart=/usr/local/bin/quiet-server --min-fan 10 --max-fan 80
 Restart=always
 RestartSec=5
 User=root
@@ -161,12 +161,12 @@ WantedBy=multi-user.target
 Enable and start the service:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable fan-service
-sudo systemctl start fan-service
+sudo systemctl enable quiet-server
+sudo systemctl start quiet-server
 
 # Check status
-sudo systemctl status fan-service
-sudo journalctl -u fan-service -f
+sudo systemctl status quiet-server
+sudo journalctl -u quiet-server -f
 ```
 
 ## Troubleshooting
