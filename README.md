@@ -4,7 +4,9 @@ A Rust-based fan controller that automatically adjusts server fan speeds based o
 
 ## Overview
 
-This tool continuously monitors CPU package temperatures via lm-sensors and automatically adjusts fan speeds using IPMI commands. It provides intelligent fan curve control with configurable temperature thresholds and power curves to balance cooling performance with noise levels.
+This tool continuously monitors CPU package temperatures via lm-sensors and automatically adjusts fan speeds using IPMI commands. **The primary purpose is to make production servers quieter for home lab deployments** by providing intelligent fan curve control with configurable temperature thresholds and power curves to balance cooling performance with noise levels.
+
+Production servers typically run fans at high speeds for maximum cooling in data center environments. This service allows you to run them more quietly at home while maintaining safe operating temperatures.
 
 ## Features
 
