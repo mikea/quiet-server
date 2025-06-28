@@ -1,5 +1,7 @@
 use clap::Parser;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -44,6 +46,14 @@ struct Args {
         help = "Show what would be done without actually setting fan speeds"
     )]
     dry_run: bool,
+
+    #[arg(
+        short,
+        long,
+        default_value_t = 5.0,
+        help = "Interval in seconds between fan speed adjustments"
+    )]
+    interval: f64,
 }
 
 fn get_temp(verbose: bool) -> f64 {
@@ -112,13 +122,19 @@ fn set_fan(fan_level: i32) {
 
 fn main() {
     let args = Args::parse();
-    let temp = get_temp(args.verbose);
-    let fan = determine_fan_level(temp, &args);
-    if args.verbose || args.dry_run {
-        let prefix = if args.dry_run { "[DRY RUN] " } else { "" };
-        println!("{prefix}Setting fan speed to {fan}% based on {temp:.1}°C");
-    }
-    if !args.dry_run {
-        set_fan(fan);
+    let interval = Duration::from_secs_f64(args.interval);
+    
+    loop {
+        let temp = get_temp(args.verbose);
+        let fan = determine_fan_level(temp, &args);
+        if args.verbose || args.dry_run {
+            let prefix = if args.dry_run { "[DRY RUN] " } else { "" };
+            println!("{prefix}Setting fan speed to {fan}% based on {temp:.1}°C");
+        }
+        if !args.dry_run {
+            set_fan(fan);
+        }
+        
+        thread::sleep(interval);
     }
 }
