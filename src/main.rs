@@ -1,5 +1,4 @@
 use clap::Parser;
-use serde_json::Value;
 use std::process::Command;
 
 #[derive(Parser, Debug)]
@@ -31,25 +30,61 @@ struct Args {
         help = "Power curve exponent (decrease for cooler server, increase for quieter)"
     )]
     temp_pow: f64,
+    
+    #[arg(
+        short,
+        long,
+        help = "Print temperature for each package and the resulting temperature"
+    )]
+    verbose: bool,
+
+    #[arg(
+        short,
+        long,
+        help = "Show what would be done without actually setting fan speeds"
+    )]
+    dry_run: bool,
 }
 
-fn get_temp() -> f64 {
-    let output = Command::new("/usr/bin/sensors")
-        .arg("-j")
-        .output()
-        .expect("Failed to execute sensors command");
-
-    let json_str = String::from_utf8(output.stdout).expect("Invalid UTF-8");
-    let sensors: Value = serde_json::from_str(&json_str).expect("Failed to parse JSON");
-
-    let temp0 = sensors["coretemp-isa-0000"]["Package id 0"]["temp1_input"]
-        .as_f64()
-        .expect("Failed to get temp0");
-    let temp1 = sensors["coretemp-isa-0001"]["Package id 1"]["temp1_input"]
-        .as_f64()
-        .expect("Failed to get temp1");
-
-    temp0.max(temp1)
+fn get_temp(verbose: bool) -> f64 {
+    let sensors = lm_sensors::Initializer::default().initialize().expect("Failed to initialize LM sensors");
+    let mut max_temp: f64 = 0.0;
+    let mut package_temps = Vec::new();
+    
+    // Iterate through all chips and find coretemp sensors
+    for chip in sensors.chip_iter(None) {
+        if let Some(Ok(prefix)) = chip.prefix() {
+            if prefix.contains("coretemp") {
+                // Look for Package temperature features
+                for feature in chip.feature_iter() {
+                    if let Ok(label) = feature.label() {
+                        if label.contains("Package") {
+                            // Get all subfeatures for this feature
+                            for subfeature in feature.sub_feature_iter() {
+                                if let Ok(lm_sensors::Value::TemperatureInput(temp_val)) = subfeature.value() {
+                                    if verbose {
+                                        package_temps.push((prefix.to_string(), label.clone(), temp_val));
+                                    }
+                                    max_temp = max_temp.max(temp_val);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if verbose {
+        for (chip, label, temp) in &package_temps {
+            println!("{chip} - {label}: {temp:.1}°C");
+        }
+        println!("Effective temperature for calculation: {max_temp:.1}°C");
+    }
+    
+    assert!(!(max_temp == 0.0), "No CPU temperature sensors found");
+    
+    max_temp
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -77,8 +112,13 @@ fn set_fan(fan_level: i32) {
 
 fn main() {
     let args = Args::parse();
-    let temp = get_temp();
+    let temp = get_temp(args.verbose);
     let fan = determine_fan_level(temp, &args);
-    println!("temp {temp} fan {fan}");
-    set_fan(fan);
+    if args.verbose || args.dry_run {
+        let prefix = if args.dry_run { "[DRY RUN] " } else { "" };
+        println!("{prefix}Setting fan speed to {fan}% based on {temp:.1}°C");
+    }
+    if !args.dry_run {
+        set_fan(fan);
+    }
 }
