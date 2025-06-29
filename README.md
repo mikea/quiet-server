@@ -6,7 +6,11 @@ A Rust-based fan controller that automatically adjusts server fan speeds based o
 
 This tool continuously monitors CPU package temperatures via lm-sensors and automatically adjusts fan speeds using IPMI commands. **The primary purpose is to make production servers quieter for home lab deployments** by providing intelligent fan curve control with configurable temperature thresholds and power curves to balance cooling performance with noise levels.
 
-Production servers typically run fans at high speeds for maximum cooling in data center environments. This service allows you to run them more quietly at home while maintaining safe operating temperatures.
+### Why This Tool Exists
+
+Modern enterprise servers are designed for data center environments where noise is not a concern. In these facilities, servers run their fans at maximum speeds to ensure optimal cooling in dense rack deployments with controlled ambient temperatures. This results in noise levels of 60-80 dB or higher - comparable to a vacuum cleaner running continuously.
+
+When these servers are repurposed for home labs or small office environments, the excessive fan noise becomes a significant problem. This tool allows you to run enterprise-grade hardware in noise-sensitive environments by intelligently adjusting fan speeds based on actual thermal requirements rather than worst-case data center scenarios.
 
 ## Features
 
@@ -23,6 +27,29 @@ Production servers typically run fans at high speeds for maximum cooling in data
 - Server with IPMI-compatible BMC (Baseboard Management Controller)
 - CPU with coretemp temperature sensors
 - Linux-based operating system
+
+### Checking IPMI Support
+Before installing, verify your server supports IPMI:
+
+```bash
+# Check if IPMI kernel modules are loaded
+lsmod | grep ipmi
+
+# Load IPMI modules if not present
+sudo modprobe ipmi_devintf
+sudo modprobe ipmi_si
+
+# Test basic IPMI functionality
+ipmitool chassis status
+
+# Check if fan control is supported (should return raw data)
+ipmitool raw 0x30 0x45 0x00
+
+# Verify temperature sensors are accessible
+ipmitool sdr type temperature
+```
+
+If these commands fail, your server may not support IPMI or require additional BMC configuration.
 
 ### Software Dependencies
 - **lm-sensors**: Hardware monitoring library and utilities
