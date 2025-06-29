@@ -32,7 +32,7 @@ struct Args {
         help = "Power curve exponent (decrease for cooler server, increase for quieter)"
     )]
     temp_pow: f64,
-    
+
     #[arg(
         short,
         long,
@@ -61,13 +61,22 @@ struct Args {
         help = "Force fan speed updates even when speed hasn't changed"
     )]
     force: bool,
+
+    #[arg(
+        short,
+        long,
+        help = "Run once and exit instead of continuous monitoring"
+    )]
+    single: bool,
 }
 
 fn get_temp(verbose: bool) -> f64 {
-    let sensors = lm_sensors::Initializer::default().initialize().expect("Failed to initialize LM sensors");
+    let sensors = lm_sensors::Initializer::default()
+        .initialize()
+        .expect("Failed to initialize LM sensors");
     let mut max_temp: f64 = 0.0;
     let mut package_temps = Vec::new();
-    
+
     // Iterate through all chips and find coretemp sensors
     for chip in sensors.chip_iter(None) {
         if let Some(Ok(prefix)) = chip.prefix() {
@@ -78,9 +87,15 @@ fn get_temp(verbose: bool) -> f64 {
                         if label.contains("Package") {
                             // Get all subfeatures for this feature
                             for subfeature in feature.sub_feature_iter() {
-                                if let Ok(lm_sensors::Value::TemperatureInput(temp_val)) = subfeature.value() {
+                                if let Ok(lm_sensors::Value::TemperatureInput(temp_val)) =
+                                    subfeature.value()
+                                {
                                     if verbose {
-                                        package_temps.push((prefix.to_string(), label.clone(), temp_val));
+                                        package_temps.push((
+                                            prefix.to_string(),
+                                            label.clone(),
+                                            temp_val,
+                                        ));
                                     }
                                     max_temp = max_temp.max(temp_val);
                                 }
@@ -91,16 +106,16 @@ fn get_temp(verbose: bool) -> f64 {
             }
         }
     }
-    
+
     if verbose {
         for (chip, label, temp) in &package_temps {
             println!("{chip} - {label}: {temp:.1}°C");
         }
         println!("Effective temperature for calculation: {max_temp:.1}°C");
     }
-    
+
     assert!(!(max_temp == 0.0), "No CPU temperature sensors found");
-    
+
     max_temp
 }
 
@@ -114,23 +129,23 @@ fn determine_fan_level(temp: f64, args: &Args) -> i32 {
 
 fn set_fan(fan_level: i32) -> Result<(), Box<dyn std::error::Error>> {
     let ipmi = Ipmi::open("/dev/ipmi0")?;
-    
+
     // manual fan control
     ipmi.cmd(0x30, 0x30, &[0x01, 0x00])?;
-    
-    // set fan level  
+
+    // set fan level
     ipmi.cmd(0x30, 0x30, &[0x02, 0xff, u8::try_from(fan_level)?])?;
-    
+
     Ok(())
 }
 
 fn validate_ipmi() -> Result<(), Box<dyn std::error::Error>> {
     let ipmi = Ipmi::open("/dev/ipmi0")?;
-    
+
     // Get device ID to verify IPMI is working
     ipmi.cmd(0x06, 0x01, &[])?;
     println!("IPMI device accessible");
-    
+
     // Test getting fan speeds (this may fail on some systems, but we'll try)
     if let Err(e) = ipmi.cmd(0x30, 0x45, &[0x00]) {
         println!("Warning: Could not read fan status: {e}");
@@ -138,13 +153,13 @@ fn validate_ipmi() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("Fan control commands appear to be supported");
     }
-    
+
     Ok(())
 }
 
 fn main() {
     let args = Args::parse();
-    
+
     // Validate IPMI functionality before starting
     if !args.dry_run {
         if let Err(e) = validate_ipmi() {
@@ -153,16 +168,16 @@ fn main() {
             std::process::exit(1);
         }
     }
-    
+
     let interval = Duration::from_secs_f64(args.interval);
     let mut last_fan_speed = 0;
-    
+
     loop {
         let temp = get_temp(args.verbose);
         let fan = determine_fan_level(temp, &args);
-        
+
         let should_set_fan = args.force || last_fan_speed != fan;
-        
+
         if args.verbose || args.dry_run {
             let prefix = if args.dry_run { "[DRY RUN] " } else { "" };
             if should_set_fan {
@@ -171,15 +186,20 @@ fn main() {
                 println!("Fan speed unchanged at {fan}% (temp: {temp:.1}°C)");
             }
         }
-        
+
         if !args.dry_run && should_set_fan {
             if let Err(e) = set_fan(fan) {
                 eprintln!("Error setting fan speed: {e}");
                 std::process::exit(1);
             }
         }
-        
+
         last_fan_speed = fan;
+
+        if args.single {
+            break;
+        }
+
         thread::sleep(interval);
     }
 }
