@@ -2,6 +2,10 @@
 
 A Rust-based fan controller that automatically adjusts server fan speeds based on CPU package temperatures using IPMI and hardware sensors.
 
+> **⚠️ EXPERIMENTAL SOFTWARE - USE AT YOUR OWN RISK**
+> 
+> This is experimental software that directly controls server hardware. Improper fan control can lead to overheating and hardware damage. While I run this in my own home lab, you should thoroughly test it with your specific hardware and monitor temperatures carefully. Always ensure you have proper cooling and temperature monitoring in place.
+
 ## Overview
 
 This tool continuously monitors CPU package temperatures via lm-sensors and automatically adjusts fan speeds using IPMI commands. **The primary purpose is to make production servers quieter for home lab deployments** by providing intelligent fan curve control with configurable temperature thresholds and power curves to balance cooling performance with noise levels.
@@ -10,7 +14,18 @@ This tool continuously monitors CPU package temperatures via lm-sensors and auto
 
 Modern enterprise servers are designed for data center environments where noise is not a concern. In these facilities, servers run their fans at maximum speeds to ensure optimal cooling in dense rack deployments with controlled ambient temperatures. This results in noise levels of 60-80 dB or higher - comparable to a vacuum cleaner running continuously.
 
-When these servers are repurposed for home labs or small office environments, the excessive fan noise becomes a significant problem. This tool allows you to run enterprise-grade hardware in noise-sensitive environments by intelligently adjusting fan speeds based on actual thermal requirements rather than worst-case data center scenarios.
+The rise of affordable refurbished enterprise servers has made powerful hardware accessible to home lab enthusiasts. Decommissioned servers from data centers can often be purchased for a fraction of their original cost, offering incredible value with features like:
+- Multiple CPU sockets with high core counts
+- Large memory capacity (often 128GB+ RAM)
+- Enterprise-grade reliability with redundant power supplies and fans
+- Hot-swappable drives, fans, and power supplies for zero-downtime maintenance
+- Hardware RAID controllers with battery backup
+- Multiple high-speed network interfaces (often 10GbE)
+- Remote out-of-band management (IPMI/iDRAC/iLO) for complete control from anywhere
+- ECC memory for data integrity
+- Built-in hardware monitoring and alerting
+
+However, when these servers are repurposed for home labs or small office environments, the excessive fan noise becomes a significant problem. This tool allows you to run enterprise-grade hardware in noise-sensitive environments by intelligently adjusting fan speeds based on actual thermal requirements rather than worst-case data center scenarios.
 
 ## Features
 
