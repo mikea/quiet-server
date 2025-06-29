@@ -5,6 +5,7 @@ use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[allow(clippy::struct_excessive_bools)]
 struct Args {
     #[arg(long, default_value_t = 4, help = "Minimum fan speed percentage")]
     min_fan: i32,
@@ -160,6 +161,12 @@ fn validate_ipmi() -> Result<(), Box<dyn std::error::Error>> {
 fn main() {
     let args = Args::parse();
 
+    // Validate temperature range
+    if args.min_temp >= args.max_temp {
+        eprintln!("Error: min_temp ({}) must be less than max_temp ({})", args.min_temp, args.max_temp);
+        std::process::exit(1);
+    }
+
     // Validate IPMI functionality before starting
     if !args.dry_run {
         if let Err(e) = validate_ipmi() {
@@ -202,4 +209,115 @@ fn main() {
 
         thread::sleep(interval);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_determine_fan_level_minimum() {
+        let args = Args {
+            min_fan: 10,
+            max_fan: 100,
+            min_temp: 40.0,
+            max_temp: 90.0,
+            temp_pow: 2.0,
+            verbose: false,
+            dry_run: false,
+            interval: 5.0,
+            force: false,
+            single: false,
+        };
+        
+        // At or below min_temp should give min_fan
+        assert_eq!(determine_fan_level(40.0, &args), 10);
+        assert_eq!(determine_fan_level(30.0, &args), 10);
+    }
+
+    #[test]
+    fn test_determine_fan_level_maximum() {
+        let args = Args {
+            min_fan: 10,
+            max_fan: 100,
+            min_temp: 40.0,
+            max_temp: 90.0,
+            temp_pow: 2.0,
+            verbose: false,
+            dry_run: false,
+            interval: 5.0,
+            force: false,
+            single: false,
+        };
+        
+        // At or above max_temp should give max_fan
+        assert_eq!(determine_fan_level(90.0, &args), 100);
+        assert_eq!(determine_fan_level(100.0, &args), 100);
+    }
+
+    #[test]
+    fn test_determine_fan_level_linear() {
+        let args = Args {
+            min_fan: 0,
+            max_fan: 100,
+            min_temp: 0.0,
+            max_temp: 100.0,
+            temp_pow: 1.0, // Linear curve
+            verbose: false,
+            dry_run: false,
+            interval: 5.0,
+            force: false,
+            single: false,
+        };
+        
+        // Linear relationship with power = 1.0
+        assert_eq!(determine_fan_level(0.0, &args), 0);
+        assert_eq!(determine_fan_level(50.0, &args), 50);
+        assert_eq!(determine_fan_level(100.0, &args), 100);
+    }
+
+    #[test]
+    fn test_determine_fan_level_power_curve() {
+        let args = Args {
+            min_fan: 10,
+            max_fan: 100,
+            min_temp: 40.0,
+            max_temp: 90.0,
+            temp_pow: 2.0,
+            verbose: false,
+            dry_run: false,
+            interval: 5.0,
+            force: false,
+            single: false,
+        };
+        
+        // Midpoint temperature (65°C) with power=2
+        // x = (65 - 40) / (90 - 40) = 0.5
+        // fan = 0.5^2 * (100 - 10) + 10 = 0.25 * 90 + 10 = 32.5 ≈ 33
+        assert_eq!(determine_fan_level(65.0, &args), 33);
+    }
+
+    #[test]
+    fn test_determine_fan_level_high_power_curve() {
+        let args = Args {
+            min_fan: 4,
+            max_fan: 100,
+            min_temp: 40.0,
+            max_temp: 90.0,
+            temp_pow: 4.0, // Default power curve
+            verbose: false,
+            dry_run: false,
+            interval: 5.0,
+            force: false,
+            single: false,
+        };
+        
+        // With power=4, fans stay low until higher temps
+        // At 65°C: x = 0.5, fan = 0.5^4 * 96 + 4 = 0.0625 * 96 + 4 = 10
+        assert_eq!(determine_fan_level(65.0, &args), 10);
+        
+        // At 80°C: x = 0.8, fan = 0.8^4 * 96 + 4 = 0.4096 * 96 + 4 = 43.3 ≈ 43
+        assert_eq!(determine_fan_level(80.0, &args), 43);
+    }
+
 }
