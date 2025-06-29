@@ -2,6 +2,14 @@
 name = "quiet-server"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mike Aizatsky <mike.aizatsky@gmail.com>"]
+description = "A Rust-based fan controller that automatically adjusts server fan speeds based on CPU package temperatures using IPMI and hardware sensors"
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/mikea/quiet-server"
+repository = "https://github.com/mikea/quiet-server"
+keywords = ["fan-control", "ipmi", "server", "cooling", "homelab"]
+categories = ["command-line-utilities", "hardware-support"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
