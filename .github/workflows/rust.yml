@@ -16,12 +16,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libsensors-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl libsensors-dev
+    - name: Install Rust via rustup
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: Install Rust toolchain
+      run: |
+        rustup toolchain install stable
+        rustup default stable
+        rustup component add clippy
     - name: Build
       run: cargo build --verbose
     - name: Run tests
