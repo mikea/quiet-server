@@ -145,6 +145,8 @@ Options:
   -i, --interval <INTERVAL> Interval in seconds between adjustments [default: 5.0]
   -v, --verbose            Print detailed temperature and fan information
   -d, --dry-run           Show what would be done without changing fan speeds
+  -f, --force             Force fan speed updates even when speed hasn't changed
+  -s, --single            Run once and exit instead of continuous monitoring
   -h, --help              Print help information
 ```
 
