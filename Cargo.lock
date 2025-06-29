@@ -221,6 +221,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipmiraw"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4cc099b5118051178314d6d3a9ca847a899af8e63aea3a7a5f5b10034fc2793"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -387,6 +397,7 @@ name = "quiet-server"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "ipmiraw",
  "lm-sensors",
 ]
 

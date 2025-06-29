@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::process::Command;
+use ipmiraw::si::Ipmi;
 use std::thread;
 use std::time::Duration;
 
@@ -112,23 +112,48 @@ fn determine_fan_level(temp: f64, args: &Args) -> i32 {
     fan_level.round() as i32
 }
 
-fn set_fan(fan_level: i32) {
+fn set_fan(fan_level: i32) -> Result<(), Box<dyn std::error::Error>> {
+    let ipmi = Ipmi::open("/dev/ipmi0")?;
+    
     // manual fan control
-    Command::new("ipmitool")
-        .args(["raw", "0x30", "0x30", "0x01", "0x00"])
-        .output()
-        .expect("Failed to set manual fan control");
+    ipmi.cmd(0x30, 0x30, &[0x01, 0x00])?;
+    
+    // set fan level  
+    ipmi.cmd(0x30, 0x30, &[0x02, 0xff, u8::try_from(fan_level)?])?;
+    
+    Ok(())
+}
 
-    // set fan level
-    let hex_fan = format!("{fan_level:#x}");
-    Command::new("ipmitool")
-        .args(["raw", "0x30", "0x30", "0x02", "0xff", &hex_fan])
-        .output()
-        .expect("Failed to set fan level");
+fn validate_ipmi() -> Result<(), Box<dyn std::error::Error>> {
+    let ipmi = Ipmi::open("/dev/ipmi0")?;
+    
+    // Get device ID to verify IPMI is working
+    ipmi.cmd(0x06, 0x01, &[])?;
+    println!("IPMI device accessible");
+    
+    // Test getting fan speeds (this may fail on some systems, but we'll try)
+    if let Err(e) = ipmi.cmd(0x30, 0x45, &[0x00]) {
+        println!("Warning: Could not read fan status: {e}");
+        println!("Fan control may not work on this system");
+    } else {
+        println!("Fan control commands appear to be supported");
+    }
+    
+    Ok(())
 }
 
 fn main() {
     let args = Args::parse();
+    
+    // Validate IPMI functionality before starting
+    if !args.dry_run {
+        if let Err(e) = validate_ipmi() {
+            eprintln!("IPMI validation failed: {e}");
+            eprintln!("Make sure /dev/ipmi0 exists and you have proper permissions");
+            std::process::exit(1);
+        }
+    }
+    
     let interval = Duration::from_secs_f64(args.interval);
     let mut last_fan_speed = 0;
     
@@ -148,7 +173,10 @@ fn main() {
         }
         
         if !args.dry_run && should_set_fan {
-            set_fan(fan);
+            if let Err(e) = set_fan(fan) {
+                eprintln!("Error setting fan speed: {e}");
+                std::process::exit(1);
+            }
         }
         
         last_fan_speed = fan;

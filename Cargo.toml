@@ -14,3 +14,4 @@ categories = ["command-line-utilities", "hardware-support"]
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 lm-sensors = "0"
+ipmiraw = "0"

@@ -16,7 +16,7 @@ When these servers are repurposed for home labs or small office environments, th
 
 - **Automatic Temperature Monitoring**: Reads CPU package temperatures from coretemp sensors
 - **Intelligent Fan Curves**: Configurable power curve with min/max temperature and fan speed settings
-- **IPMI Integration**: Direct fan control via ipmitool commands
+- **Native IPMI Integration**: Direct fan control via IPMI kernel interface (no external tools required)
 - **Continuous Operation**: Runs as a daemon with configurable monitoring intervals
 - **Verbose Logging**: Optional detailed output showing temperature readings and fan adjustments
 - **Dry Run Mode**: Test configuration without actually changing fan speeds
@@ -53,9 +53,9 @@ If these commands fail, your server may not support IPMI or require additional B
 
 ### Software Dependencies
 - **lm-sensors**: Hardware monitoring library and utilities
-- **ipmitool**: IPMI management utility
 - **libsensors-dev**: Development headers for lm-sensors
 - **clang**: Required for building lm-sensors Rust bindings
+- **IPMI kernel modules**: Required for native IPMI access (ipmi_devintf, ipmi_si)
 
 ### Rust Dependencies
 - Rust 2024 edition or later
@@ -68,14 +68,14 @@ If these commands fail, your server may not support IPMI or require additional B
 #### Ubuntu/Debian:
 ```bash
 sudo apt-get update
-sudo apt-get install lm-sensors lm-sensors-dev ipmitool libclang-dev
+sudo apt-get install lm-sensors libsensors-dev libclang-dev
 ```
 
 #### RHEL/CentOS/Fedora:
 ```bash
-sudo dnf install lm_sensors lm_sensors-devel ipmitool clang-devel
+sudo dnf install lm_sensors lm_sensors-devel clang-devel
 # or for older versions:
-sudo yum install lm_sensors lm_sensors-devel ipmitool clang-devel
+sudo yum install lm_sensors lm_sensors-devel clang-devel
 ```
 
 ### 2. Configure Hardware Sensors
@@ -91,13 +91,15 @@ sensors
 ```
 
 ### 3. Configure IPMI Access
-Ensure your user has access to IPMI commands:
 ```bash
-# Test IPMI access
-ipmitool chassis status
+# Load IPMI kernel modules
+sudo modprobe ipmi_devintf
+sudo modprobe ipmi_si
 
-# If needed, add user to appropriate groups
-sudo usermod -a -G dialout $USER
+# Verify IPMI device exists
+ls -la /dev/ipmi*
+
+# The tool requires root access or appropriate permissions on /dev/ipmi0
 ```
 
 ### 4. Build and Install
@@ -166,35 +168,30 @@ quiet-server --dry-run --verbose --interval 2.0
 ## Running as a Service
 
 ### systemd Service (Recommended)
-Create `/etc/systemd/system/quiet-server.service`:
-```ini
-[Unit]
-Description=Quiet Server Fan Control Service
-After=multi-user.target
+An example systemd service file is provided in [`examples/quiet-server.service`](examples/quiet-server.service). Copy it to the system directory:
 
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/quiet-server --min-fan 10 --max-fan 80
-Restart=always
-RestartSec=5
-User=root
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
 ```bash
+# Copy the service file
+sudo cp examples/quiet-server.service /etc/systemd/system/
+
+# Edit the service file to adjust paths and settings as needed
+sudo systemctl edit quiet-server.service
+
+# Enable and start the service
 sudo systemctl daemon-reload
 sudo systemctl enable quiet-server
 sudo systemctl start quiet-server
 
-# Check status
+# Check status and logs
 sudo systemctl status quiet-server
 sudo journalctl -u quiet-server -f
 ```
+
+The example service includes:
+- Automatic restart on failure
+- Verbose logging to systemd journal
+- Security hardening settings
+- Configurable fan speed limits (10-80% in the example)
 
 ## Troubleshooting
 
