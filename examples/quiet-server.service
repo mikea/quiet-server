@@ -1,0 +1,33 @@
+[Unit]
+Description=Quiet Server Fan Control Service
+Documentation=https://github.com/mikea/quiet-server
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/quiet-server --min-fan 10 --max-fan 80 --verbose
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=quiet-server
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=false
+DeviceAllow=/dev/ipmi0 rw
+DeviceAllow=/dev/ipmi* rw
+DevicePolicy=closed
+
+# Environment
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
